@@ -56,7 +56,8 @@ jobs:
           SRC="target/x86_64-pc-windows-msvc/release"
           OUT="dist/glazewm"
           mkdir -p "$OUT/cli"
-          cp "$SRC/glazewm.exe" "$SRC/glazewm-watcher.exe" LICENSE.md "$OUT/"
+          # WINMARCHY.md also tells WinMarchy that this is its build of GlazeWM.
+          cp "$SRC/glazewm.exe" "$SRC/glazewm-watcher.exe" LICENSE.md WINMARCHY.md "$OUT/"
           # Same layout as the official standalone MSI: the CLI lives in cli\glazewm.exe.
           cp "$SRC/glazewm-cli.exe" "$OUT/cli/glazewm.exe"
           ZIP="glazewm-v${VERSION_NUMBER}-x64.zip"
