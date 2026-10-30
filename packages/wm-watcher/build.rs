@@ -17,8 +17,10 @@ fn main() {
   res.set("ProductName", "GlazeWM Watcher");
   res.set("FileDescription", "GlazeWM Watcher");
 
+  // Pre-release suffixes (e.g. `3.10.1-winmarchy.1`) are not part of the
+  // numeric file version.
   let version_parts = env!("VERSION_NUMBER")
-    .split('.')
+    .split(['.', '-', '+'])
     .take(3)
     .map(|part| part.parse().unwrap_or(0))
     .collect::<Vec<u16>>();
