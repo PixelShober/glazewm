@@ -28,6 +28,12 @@ pub fn toggle_tiling_direction(
     _ => return Ok(()),
   }?;
 
+  // A changed direction moves the container's children (e.g. two windows
+  // side-by-side now stack vertically), so they need to be redrawn.
+  state
+    .pending_sync
+    .queue_container_to_redraw(direction_container.clone());
+
   state.emit_event(WmEvent::TilingDirectionChanged {
     direction_container: direction_container.to_dto()?,
     new_tiling_direction: direction_container.tiling_direction(),
