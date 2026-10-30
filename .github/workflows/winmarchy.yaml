@@ -1,0 +1,85 @@
+# Builds the WinMarchy flavour of GlazeWM (branch `winmarchy`).
+#
+# Every push and pull request builds and tests it; a tag like `v3.10.1-winmarchy.1`
+# publishes a release with one zip. WinMarchy installs that zip to C:\WinMarchy\Tools.
+# Unlike upstream releases the binaries are not signed, so UIAccess stays off.
+name: WinMarchy build
+
+on:
+  push:
+    branches: [winmarchy]
+    tags: ['v*-winmarchy.*']
+  pull_request:
+    branches: [winmarchy]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@21dc36fb71dd22e3317045c0c31a3f4249868b17
+        with:
+          targets: x86_64-pc-windows-msvc
+          toolchain: nightly
+
+      - uses: swatinem/rust-cache@f0deed1e0edfc6a9be95417288c0e1099b1eeec3
+        with:
+          shared-key: winmarchy-x64-${{ hashFiles('Cargo.lock') }}
+
+      - name: Version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0-winmarchy.ci.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "VERSION_NUMBER=$VERSION" >> "$GITHUB_ENV"
+          echo "Version: $VERSION"
+
+      - name: Build
+        shell: bash
+        run: cargo build --locked --release --target x86_64-pc-windows-msvc --workspace
+
+      - name: Test
+        shell: bash
+        run: cargo test --locked --release --target x86_64-pc-windows-msvc -p wm
+
+      - name: Package
+        shell: bash
+        run: |
+          SRC="target/x86_64-pc-windows-msvc/release"
+          OUT="dist/glazewm"
+          mkdir -p "$OUT/cli"
+          cp "$SRC/glazewm.exe" "$SRC/glazewm-watcher.exe" LICENSE.md "$OUT/"
+          # Same layout as the official standalone MSI: the CLI lives in cli\glazewm.exe.
+          cp "$SRC/glazewm-cli.exe" "$OUT/cli/glazewm.exe"
+          ZIP="glazewm-v${VERSION_NUMBER}-x64.zip"
+          (cd "$OUT" && 7z a -tzip "../../$ZIP" . > /dev/null)
+          sha256sum "$ZIP" | tee "$ZIP.sha256"
+          echo "ZIP=$ZIP" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: glazewm-winmarchy-x64
+          if-no-files-found: error
+          path: |
+            ${{ env.ZIP }}
+            ${{ env.ZIP }}.sha256
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "GlazeWM for WinMarchy, based on upstream GlazeWM. Changes: see WINMARCHY.md." \
+            "$ZIP#GlazeWM for WinMarchy (x64)" \
+            "$ZIP.sha256"
