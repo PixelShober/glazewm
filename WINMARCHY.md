@@ -30,4 +30,5 @@ administrator are not managed.
 | On config reload, open workspaces move to the monitor in their `bind_to_monitor` | pull request planned |
 | Build scripts read the numbers of pre-release versions (`3.10.1-winmarchy.1` → 3.10.1) | pull request planned |
 | Redundant borrow that newer nightly clippy rejects (`user_config.rs`), which failed the lint check | pull request planned |
+| The sample config starts no bar and ignores YASB's windows: WinMarchy starts YASB itself, and GlazeWM no longer brings Zebar along | fork only |
 | This file and `.github/workflows/winmarchy.yaml` | fork only |
