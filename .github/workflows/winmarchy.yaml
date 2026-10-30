@@ -78,9 +78,15 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # The tag may come from a release drafted on GitHub's release page; then the files go into
+        # that release instead of a new one.
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --notes "GlazeWM for WinMarchy, based on upstream GlazeWM. Changes: see WINMARCHY.md." \
-            "$ZIP#GlazeWM for WinMarchy (x64)" \
-            "$ZIP.sha256"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$ZIP#GlazeWM for WinMarchy (x64)" "$ZIP.sha256" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --notes "GlazeWM for WinMarchy, based on upstream GlazeWM. Changes: see WINMARCHY.md." \
+              "$ZIP#GlazeWM for WinMarchy (x64)" \
+              "$ZIP.sha256"
+          fi
