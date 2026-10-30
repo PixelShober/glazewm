@@ -7,7 +7,10 @@ use wm_common::{WindowRuleEvent, WmEvent};
 use wm_platform::NativeWindowWindowsExt;
 
 use crate::{
-  commands::{window::run_window_rules, workspace::sort_workspaces},
+  commands::{
+    monitor::move_workspace_to_monitor, window::run_window_rules,
+    workspace::sort_workspaces,
+  },
   traits::{CommonGetters, TilingSizeGetters, WindowGetters},
   user_config::UserConfig,
   wm::WindowManager,
@@ -34,6 +37,8 @@ pub fn reload_config(
   }
 
   update_workspace_configs(state, config)?;
+
+  move_bound_workspaces(state, config)?;
 
   update_container_gaps(state, config);
 
@@ -133,6 +138,47 @@ fn update_workspace_configs(
           });
         }
       }
+    }
+  }
+
+  Ok(())
+}
+
+/// Moves active workspaces to the monitor they are bound to.
+///
+/// `bind_to_monitor` is otherwise only applied when a workspace is
+/// activated, so a workspace that is already open on another monitor
+/// would stay there after the binding is added or changed.
+fn move_bound_workspaces(
+  state: &mut WmState,
+  config: &UserConfig,
+) -> anyhow::Result<()> {
+  for workspace in state.workspaces() {
+    let Some(monitor_index) = workspace.config().bind_to_monitor else {
+      continue;
+    };
+
+    let Some(target_monitor) = state
+      .monitors()
+      .into_iter()
+      .find(|monitor| monitor.index() == monitor_index as usize)
+    else {
+      continue;
+    };
+
+    let current_monitor = workspace.monitor().context("No monitor.")?;
+
+    if current_monitor.id() != target_monitor.id() {
+      info!(
+        "Moving workspace {workspace} to its bound monitor {monitor_index}."
+      );
+
+      move_workspace_to_monitor(
+        &workspace,
+        &target_monitor,
+        state,
+        config,
+      )?;
     }
   }
 
