@@ -670,21 +670,7 @@ impl Dispatcher {
   #[allow(clippy::missing_panics_doc)]
   pub fn show_error_dialog(&self, title: &str, message: &str) {
     #[cfg(target_os = "windows")]
-    {
-      let title_wide =
-        title.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
-      let message_wide =
-        message.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
-
-      unsafe {
-        MessageBoxW(
-          None,
-          PCWSTR(message_wide.as_ptr()),
-          PCWSTR(title_wide.as_ptr()),
-          MB_ICONERROR | MB_OK | MB_SYSTEMMODAL,
-        );
-      }
-    }
+    Self::show_message_box(title, message);
     #[cfg(target_os = "macos")]
     {
       // TODO: This should block indefinitely. Currently, it gets timed out
@@ -698,6 +684,69 @@ impl Dispatcher {
         alert.setAlertStyle(NSAlertStyle::Critical);
         alert.runModal();
       });
+    }
+  }
+
+  /// Shows an error dialog with the given title and message without
+  /// blocking the current thread.
+  ///
+  /// Meant for errors the window manager recovers from: while a blocking
+  /// dialog is open, no further events or IPC messages would be handled,
+  /// and the window manager would appear to hang. At most one such dialog
+  /// is open at a time; errors that occur meanwhile are not shown (they
+  /// are logged by the caller).
+  ///
+  /// # Platform-specific
+  ///
+  /// - **Windows**: The dialog runs on a thread of its own.
+  /// - **macOS**: Same as `show_error_dialog`, which returns after at most
+  ///   5 seconds.
+  pub fn show_error_dialog_nonblocking(&self, title: &str, message: &str) {
+    #[cfg(target_os = "windows")]
+    {
+      static IS_OPEN: AtomicBool = AtomicBool::new(false);
+
+      if IS_OPEN.swap(true, Ordering::SeqCst) {
+        return;
+      }
+
+      let title = title.to_string();
+      let message = message.to_string();
+
+      let spawn_res = std::thread::Builder::new()
+        .name("error-dialog".to_string())
+        .spawn(move || {
+          Self::show_message_box(&title, &message);
+          IS_OPEN.store(false, Ordering::SeqCst);
+        });
+
+      if let Err(err) = spawn_res {
+        IS_OPEN.store(false, Ordering::SeqCst);
+        tracing::warn!("Failed to show error dialog: {}", err);
+      }
+    }
+    #[cfg(target_os = "macos")]
+    self.show_error_dialog(title, message);
+  }
+
+  /// Shows a system-modal error message box and returns once it is
+  /// dismissed. Can be called from any thread.
+  #[cfg(target_os = "windows")]
+  fn show_message_box(title: &str, message: &str) {
+    let title_wide =
+      title.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
+    let message_wide =
+      message.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
+
+    // SAFETY: Both strings are null-terminated UTF-16 buffers that outlive
+    // the call.
+    unsafe {
+      MessageBoxW(
+        None,
+        PCWSTR(message_wide.as_ptr()),
+        PCWSTR(title_wide.as_ptr()),
+        MB_ICONERROR | MB_OK | MB_SYSTEMMODAL,
+      );
     }
   }
 }

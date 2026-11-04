@@ -176,7 +176,8 @@ async fn start_wm(
     &mut config,
   ) {
     tracing::error!("{:?}", err);
-    dispatcher.show_error_dialog("Non-fatal error", &err.to_string());
+    dispatcher
+      .show_error_dialog_nonblocking("Non-fatal error", &err.to_string());
   }
 
   // Create an interval for periodically cleaning up invalid windows.
@@ -288,7 +289,10 @@ async fn start_wm(
 
     if let Err(err) = res {
       tracing::error!("{:?}", err);
-      dispatcher.show_error_dialog("Non-fatal error", &err.to_string());
+      dispatcher.show_error_dialog_nonblocking(
+        "Non-fatal error",
+        &err.to_string(),
+      );
     }
   }
 
