@@ -29,6 +29,8 @@ administrator are not managed.
 | Redraw after `toggle-tiling-direction` / `set-tiling-direction`, so the new direction shows at once | pull request planned |
 | On config reload, open workspaces move to the monitor in their `bind_to_monitor` | pull request planned |
 | Build scripts read the numbers of pre-release versions (`3.10.1-winmarchy.1` → 3.10.1) | pull request planned |
+| Non-fatal errors show their dialog without blocking the event loop; before, GlazeWM stopped handling windows, keys and IPC until the dialog was closed | pull request planned |
+| The IPC listener is not inherited by the watcher, and binding retries for 10 s while the port is still taken, so a restart after a crash no longer fails with os error 10048 | pull request planned |
 | Redundant borrow that newer nightly clippy rejects (`user_config.rs`), which failed the lint check | pull request planned |
 | The sample config starts no bar and ignores YASB's windows: WinMarchy starts YASB itself, and GlazeWM no longer brings Zebar along | fork only |
 | This file and `.github/workflows/winmarchy.yaml` | fork only |
