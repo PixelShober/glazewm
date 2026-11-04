@@ -7,6 +7,8 @@ on:
 
 jobs:
   publish:
+    # Only glzr-io publishes glzr-io.glazewm; a fork's releases are not that package.
+    if: github.repository_owner == 'glzr-io'
     runs-on: ubuntu-latest
     steps:
       - uses: vedantmgoyal9/winget-releaser@19e706d4c9121098010096f9c495a70a7518b30f
