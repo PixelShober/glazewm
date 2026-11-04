@@ -33,4 +33,5 @@ administrator are not managed.
 | The IPC listener is not inherited by the watcher, and binding retries for 10 s while the port is still taken, so a restart after a crash no longer fails with os error 10048 | pull request planned |
 | Redundant borrow that newer nightly clippy rejects (`user_config.rs`), which failed the lint check | pull request planned |
 | The sample config starts no bar and ignores YASB's windows: WinMarchy starts YASB itself, and GlazeWM no longer brings Zebar along | fork only |
+| The winget release only runs in glzr-io's repository, so a release of this fork is never submitted as `glzr-io.glazewm` | pull request planned |
 | This file and `.github/workflows/winmarchy.yaml` | fork only |
