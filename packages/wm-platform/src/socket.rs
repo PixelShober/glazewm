@@ -18,8 +18,7 @@ pub fn disable_socket_inheritance(
     SetHandleInformation, HANDLE, HANDLE_FLAGS, HANDLE_FLAG_INHERIT,
   };
 
-  #[allow(clippy::cast_possible_wrap)]
-  let handle = HANDLE(socket.as_raw_socket() as isize);
+  let handle = HANDLE(isize::try_from(socket.as_raw_socket())?);
 
   // SAFETY: The handle belongs to a socket that is open for the duration
   // of this call, and only its inheritance flag is changed.
