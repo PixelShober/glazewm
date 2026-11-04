@@ -1,4 +1,8 @@
-use std::{iter, net::SocketAddr};
+use std::{
+  io, iter,
+  net::SocketAddr,
+  time::{Duration, Instant},
+};
 
 use anyhow::{bail, Context};
 use clap::Parser;
@@ -39,13 +43,51 @@ pub struct IpcServer {
 }
 
 impl IpcServer {
+  /// How long binding the IPC port is retried while it is still taken.
+  const BIND_RETRY_DURATION: Duration = Duration::from_secs(10);
+
+  /// Binds the IPC port.
+  ///
+  /// Right after a previous instance has ended, the port can still be
+  /// taken for a moment (e.g. while the previous instance is still
+  /// shutting down). Binding is therefore retried for up to
+  /// `BIND_RETRY_DURATION` before giving up.
+  ///
+  /// The listener is not inherited by child processes, so that the
+  /// watcher and processes started through `shell-exec` do not keep the
+  /// port taken after this process has ended.
+  async fn bind(server_addr: &str) -> anyhow::Result<TcpListener> {
+    let started_at = Instant::now();
+
+    let server = loop {
+      match TcpListener::bind(server_addr).await {
+        Ok(server) => break server,
+        Err(err)
+          if err.kind() == io::ErrorKind::AddrInUse
+            && started_at.elapsed() < Self::BIND_RETRY_DURATION =>
+        {
+          warn!("IPC port is taken, retrying: {}", err);
+          tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+        Err(err) => {
+          return Err(err).context(format!(
+            "Failed to bind IPC server to '{server_addr}'."
+          ))
+        }
+      }
+    };
+
+    wm_platform::disable_socket_inheritance(&server)?;
+    Ok(server)
+  }
+
   pub async fn start() -> anyhow::Result<Self> {
     let (message_tx, message_rx) = mpsc::unbounded_channel();
     let (event_tx, _event_rx) = broadcast::channel(16);
     let (unsubscribe_tx, _unsubscribe_rx) = broadcast::channel(16);
 
     let server_addr = format!("127.0.0.1:{DEFAULT_IPC_PORT}");
-    let server = TcpListener::bind(server_addr.clone()).await?;
+    let server = Self::bind(&server_addr).await?;
     info!("IPC server started on: '{}'.", server_addr);
 
     let task = task::spawn(async move {
